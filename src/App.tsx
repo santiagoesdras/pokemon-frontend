@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ApiError, getPokemonByName, getPokemonList, type Pokemon } from "./services/pokemon-api";
+import { API_URL } from "./config/api";
+import {
+  ApiError,
+  checkBackendHealth,
+  getPokemonByName,
+  getPokemonList,
+  type Pokemon,
+} from "./services/pokemon-api";
+import { SearchBar } from "./components/SearchBar";
 
 const POKEMON_LIMIT = 20;
 
 type LoadState = "idle" | "loading" | "success" | "error";
+type ConnectionState = "checking" | "connected" | "error";
 
 function formatPokemonName(name: string): string {
   return name
@@ -21,6 +30,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export default function App() {
+  const [connectionState, setConnectionState] = useState<ConnectionState>("checking");
   const [pokemonNames, setPokemonNames] = useState<string[]>([]);
   const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null);
   const [selectedName, setSelectedName] = useState<string>("");
@@ -77,6 +87,10 @@ export default function App() {
   }, [loadPokemonDetail]);
 
   useEffect(() => {
+    checkBackendHealth()
+      .then(() => setConnectionState("connected"))
+      .catch(() => setConnectionState("error"));
+
     void loadPokemonList();
   }, [loadPokemonList]);
 
@@ -87,6 +101,11 @@ export default function App() {
           <div>
             <p className="eyebrow">Catalogo</p>
             <h1 id="catalog-title">Pokedex</h1>
+            <p className="backend-status">
+              Backend: {API_URL} | Estado: {connectionState === "checking" && "comprobando..."}
+              {connectionState === "connected" && "conectado"}
+              {connectionState === "error" && "no disponible"}
+            </p>
           </div>
 
           <button
@@ -98,6 +117,8 @@ export default function App() {
             {listState === "loading" ? "Cargando..." : "Recargar"}
           </button>
         </div>
+
+        <SearchBar onSearch={(name) => void loadPokemonDetail(name)} isLoading={detailState === "loading"} />
 
         {listState === "error" && (
           <div className="message error-message" role="alert">
